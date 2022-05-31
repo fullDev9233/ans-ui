@@ -11,7 +11,7 @@ import { normalize } from 'eth-ens-namehash'
 import { formatsByName } from '@ensdomains/address-encoder'
 import { abi as ensContract } from '@ensdomains/contracts/abis/ens/ENS.json'
 import bns from 'bns'
-import {BufferReader, BufferWriter} from 'bufio'
+import { BufferReader, BufferWriter } from 'bufio'
 import { decryptHashes } from './preimage'
 
 import {
@@ -57,8 +57,8 @@ function getLabelhash(label) {
 }
 
 function hashDNSName(name) {
-  const dnsName = bns.encoding.packName(bns.util.fqdn(name));
-  return utils.keccak256(dnsName);
+  const dnsName = bns.encoding.packName(bns.util.fqdn(name))
+  return utils.keccak256(dnsName)
 }
 
 // Parse a DNS record in text format and writes to a buffer
@@ -67,32 +67,32 @@ function hashDNSName(name) {
 // name.eth.      0 IN  A
 function writeDNSRecordFromZone(bw, rr) {
   try {
-    const record = bns.wire.Record.fromString(rr);
-    bw.writeBytes(record.encode());
+    const record = bns.wire.Record.fromString(rr)
+    bw.writeBytes(record.encode())
   } catch (e) {
     // this record may have empty rdata
     // [owner_name] [ttl] [class] [type] [rdata]
     const parts = rr.trim().split(/[\s]+/)
     if (parts.length !== 4) {
       // doesn't seem like a valid record
-      throw new Error('unable to parse record');
+      throw new Error('unable to parse record')
     }
 
-    const rname = parts[0];
-    if(!bns.util.isFQDN(rname)) {
-      throw new Error('owner name must be a fully qualified domain name');
+    const rname = parts[0]
+    if (!bns.util.isFQDN(rname)) {
+      throw new Error('owner name must be a fully qualified domain name')
     }
 
-    const rtype = bns.wire.stringToType(parts[3]);
-    const rclass = bns.wire.stringToClass(parts[2]);
+    const rtype = bns.wire.stringToType(parts[3])
+    const rclass = bns.wire.stringToClass(parts[2])
 
     // manually encode the record
     // since bns errors on empty rdata
-    bw.writeBytes(bns.encoding.packName(rname));
-    bw.writeU16BE(rtype);
-    bw.writeU16BE(rclass);
-    bw.writeU32BE(0); // zero TTL
-    bw.writeU16BE(0); // zero RDLENGTH
+    bw.writeBytes(bns.encoding.packName(rname))
+    bw.writeU16BE(rtype)
+    bw.writeU16BE(rclass)
+    bw.writeU32BE(0) // zero TTL
+    bw.writeU16BE(0) // zero RDLENGTH
   }
 }
 
@@ -100,7 +100,7 @@ function decodeDNSRecords(data) {
   const br = new BufferReader(data)
   const records = []
 
-  while(br.left() > 0) {
+  while (br.left() > 0) {
     let str = bns.wire.Record.read(br).toString()
     records.push(str)
   }
@@ -119,7 +119,7 @@ const contracts = {
     registry: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e'
   },
   43113: {
-    registry: '0xaE98BAb5a2943696BaD0E3722bE1b95354743190'
+    registry: '0x4f980F4819b2B4bDc15c00cD9E8718D77f7b54bB'
   }
 }
 
@@ -308,13 +308,18 @@ export class ENS {
   }
 
   async getDNSRecordsZoneFormat(nodeName, dnsName, dnsType) {
-    const data = await this.getRawDNSRecords(nodeName, dnsName, dnsType);
-    return decodeDNSRecords(data);
+    const data = await this.getRawDNSRecords(nodeName, dnsName, dnsType)
+    return decodeDNSRecords(data)
   }
 
   async getRawDNSRecords(nodeName, dnsName, dnsType) {
     const resolverAddr = await this.getResolver(nodeName)
-    return this.getRawDNSRecordsWithResolver(nodeName, dnsName, dnsType, resolverAddr)
+    return this.getRawDNSRecordsWithResolver(
+      nodeName,
+      dnsName,
+      dnsType,
+      resolverAddr
+    )
   }
 
   async getRawDNSRecordsWithResolver(nodeName, dnsName, dnsType, resolverAddr) {
@@ -332,15 +337,19 @@ export class ENS {
         provider
       })
 
-      const data = await Resolver.dnsRecord(namehash, hashDNSName(dnsName), type)
+      const data = await Resolver.dnsRecord(
+        namehash,
+        hashDNSName(dnsName),
+        type
+      )
       return Buffer.from(data.substr(2), 'hex')
     } catch (e) {
       console.warn(
-          'Error getting dns record on the dns resolver contract, are you sure the resolver address is a resolver contract?', e
+        'Error getting dns record on the dns resolver contract, are you sure the resolver address is a resolver contract?',
+        e
       )
       return []
     }
-
   }
 
   async getName(address) {
@@ -406,24 +415,27 @@ export class ENS {
       topics: [namehash],
       fromBlock: startBlock
     })
-    const flattenedLogs = rawLogs.map(log => log.values)
+    const flattenedLogs = rawLogs.map((log) => log.values)
     flattenedLogs.reverse()
     const logs = uniq(flattenedLogs, 'label')
-    const labelhashes = logs.map(log => log.label)
+    const labelhashes = logs.map((log) => log.label)
     const remoteLabels = await decryptHashes(...labelhashes)
     const localLabels = checkLabels(...labelhashes)
     const labels = mergeLabels(localLabels, remoteLabels)
-    const ownerPromises = labels.map(label => this.getOwner(`${label}.${name}`))
+    const ownerPromises = labels.map((label) =>
+      this.getOwner(`${label}.${name}`)
+    )
 
-    return Promise.all(ownerPromises).then(owners =>
+    return Promise.all(ownerPromises).then((owners) =>
       owners.map((owner, index) => {
         return {
           label: labels[index],
           labelhash: logs[index].label,
           decrypted: labels[index] !== null,
           node: name,
-          name: `${labels[index] ||
-            encodeLabelhash(logs[index].label)}.${name}`,
+          name: `${
+            labels[index] || encodeLabelhash(logs[index].label)
+          }.${name}`,
           owner
         }
       })
@@ -621,13 +633,13 @@ export class ENS {
   // 2. Remove any TXT records from hello.eth.
   // 3. Add a TLSA record
   async setDNSRecordsFromZone(name, rrs) {
-    const bw = new BufferWriter();
+    const bw = new BufferWriter()
     for (const rr of rrs) {
-      writeDNSRecordFromZone(bw, rr);
+      writeDNSRecordFromZone(bw, rr)
     }
 
-    const data = bw.render();
-    return this.setRawDNSRecords(name, data);
+    const data = bw.render()
+    return this.setRawDNSRecords(name, data)
   }
 
   async setRawDNSRecords(name, data) {
@@ -635,7 +647,7 @@ export class ENS {
     return this.setRawDNSRecordsWithResolver(name, data, resolverAddr)
   }
 
-  async setRawDNSRecordsWithResolver(name,  data, resolverAddr) {
+  async setRawDNSRecordsWithResolver(name, data, resolverAddr) {
     const namehash = getNamehash(name)
     const provider = await getProvider()
     const ResolverWithoutSigner = getDNSResolverContract({
@@ -649,8 +661,9 @@ export class ENS {
 
   async createSubdomain(name) {
     const account = await getAccount()
-    const publicResolverAddress = process.env.REACT_APP_TLD_RESOLVER || 
-      await this.getAddress('resolver.'+process.env.REACT_APP_REGISTRAR_TLD)
+    const publicResolverAddress =
+      process.env.REACT_APP_TLD_RESOLVER ||
+      (await this.getAddress('resolver.' + process.env.REACT_APP_REGISTRAR_TLD))
     try {
       return this.setSubnodeRecord(name, account, publicResolverAddress)
     } catch (e) {
@@ -720,7 +733,7 @@ export class ENS {
 
     const logs = await provider.getLogs(filter)
 
-    const parsed = logs.map(log => {
+    const parsed = logs.map((log) => {
       const parsedLog = ensInterface.parseLog(log)
       return parsedLog
     })
